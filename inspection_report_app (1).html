@@ -1,0 +1,2143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Car Inspection Report Generator</title>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<style>
+  :root {
+    --bg: #0d0f14;
+    --surface: #161a23;
+    --surface2: #1e2330;
+    --border: #2a3045;
+    --accent: #e8a020;
+    --accent2: #f0c060;
+    --text: #e8eaf0;
+    --muted: #7a8299;
+    --danger: #e05555;
+    --success: #3ec98e;
+    --info: #4a9eff;
+    --radius: 12px;
+    --shadow: 0 8px 32px rgba(0,0,0,0.4);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Sora', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ===== HEADER ===== */
+  .app-header {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 0 32px;
+    height: 64px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-weight: 700;
+    font-size: 1.1rem;
+    letter-spacing: -0.02em;
+  }
+  .logo-icon {
+    width: 36px; height: 36px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px;
+  }
+  .header-actions {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+  }
+  .btn {
+    padding: 9px 20px;
+    border-radius: 8px;
+    border: none;
+    font-family: 'Sora', sans-serif;
+    font-size: 0.82rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.18s ease;
+    letter-spacing: 0.01em;
+  }
+  .btn-ghost {
+    background: transparent;
+    color: var(--muted);
+    border: 1px solid var(--border);
+  }
+  .btn-ghost:hover { background: var(--surface2); color: var(--text); border-color: var(--accent); }
+  .btn-accent {
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    color: #0d0f14;
+  }
+  .btn-accent:hover { transform: translateY(-1px); box-shadow: 0 4px 16px rgba(232,160,32,0.35); }
+  .btn-danger { background: var(--danger); color: #fff; }
+  .btn-success { background: var(--success); color: #0d0f14; }
+  .btn-info { background: var(--info); color: #fff; }
+
+  /* ===== VIEWS ===== */
+  .view { display: none; }
+  .view.active { display: block; }
+
+  /* ===== LANDING ===== */
+  .landing {
+    min-height: calc(100vh - 64px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 20px;
+  }
+  .landing-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+    max-width: 900px;
+    width: 100%;
+  }
+  .landing-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 48px 40px;
+    cursor: pointer;
+    transition: all 0.25s ease;
+    position: relative;
+    overflow: hidden;
+  }
+  .landing-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+    transform: scaleX(0);
+    transition: transform 0.25s ease;
+  }
+  .landing-card:hover { border-color: var(--accent); transform: translateY(-4px); box-shadow: var(--shadow); }
+  .landing-card:hover::before { transform: scaleX(1); }
+  .card-icon { font-size: 3rem; margin-bottom: 20px; }
+  .card-title { font-size: 1.4rem; font-weight: 700; margin-bottom: 10px; letter-spacing: -0.03em; }
+  .card-desc { color: var(--muted); font-size: 0.88rem; line-height: 1.6; }
+  .landing-header { grid-column: 1/-1; text-align: center; padding-bottom: 20px; }
+  .landing-header h1 { font-size: 2.8rem; font-weight: 800; letter-spacing: -0.05em; }
+  .landing-header h1 span { color: var(--accent); }
+  .landing-header p { color: var(--muted); margin-top: 10px; font-size: 0.95rem; }
+
+  /* ===== DEALER DASHBOARD ===== */
+  .dashboard-layout {
+    display: grid;
+    grid-template-columns: 260px 1fr;
+    min-height: calc(100vh - 64px);
+  }
+  .sidebar {
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    padding: 28px 0;
+  }
+  .sidebar-section { padding: 0 20px; margin-bottom: 8px; }
+  .sidebar-label {
+    font-size: 0.68rem;
+    font-weight: 600;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    padding: 16px 12px 8px;
+  }
+  .sidebar-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 0.88rem;
+    color: var(--muted);
+    transition: all 0.15s ease;
+    font-weight: 500;
+  }
+  .sidebar-item:hover, .sidebar-item.active {
+    background: var(--surface2);
+    color: var(--text);
+  }
+  .sidebar-item.active { color: var(--accent); border-left: 2px solid var(--accent); margin-left: -2px; }
+  .sidebar-item span.icon { font-size: 1.1rem; }
+  .main-content { padding: 36px 40px; overflow-y: auto; }
+  .section-title {
+    font-size: 1.5rem;
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    margin-bottom: 6px;
+  }
+  .section-subtitle { color: var(--muted); font-size: 0.88rem; margin-bottom: 28px; }
+
+  /* ===== FORM ELEMENTS ===== */
+  .form-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 18px;
+    margin-bottom: 18px;
+  }
+  .form-grid.cols-3 { grid-template-columns: 1fr 1fr 1fr; }
+  .form-grid.cols-1 { grid-template-columns: 1fr; }
+  .form-group { display: flex; flex-direction: column; gap: 6px; }
+  .form-group.full { grid-column: 1/-1; }
+  label {
+    font-size: 0.76rem;
+    font-weight: 600;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+  input, select, textarea {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 11px 14px;
+    color: var(--text);
+    font-family: 'Sora', sans-serif;
+    font-size: 0.88rem;
+    transition: border-color 0.15s ease;
+    outline: none;
+    width: 100%;
+  }
+  input:focus, select:focus, textarea:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(232,160,32,0.1);
+  }
+  select option { background: var(--surface2); }
+  textarea { resize: vertical; min-height: 80px; }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 28px;
+    margin-bottom: 24px;
+  }
+  .card-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 20px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--border);
+  }
+  .card-header h3 { font-size: 1rem; font-weight: 600; }
+  .card-header .badge {
+    background: var(--accent);
+    color: #0d0f14;
+    font-size: 0.7rem;
+    font-weight: 700;
+    padding: 3px 8px;
+    border-radius: 20px;
+  }
+
+  /* ===== DEALER PROFILE PREVIEW ===== */
+  .dealer-preview {
+    background: linear-gradient(135deg, var(--surface2), var(--surface));
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 24px;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    margin-bottom: 28px;
+  }
+  .dealer-avatar {
+    width: 64px; height: 64px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 28px;
+    flex-shrink: 0;
+  }
+  .dealer-info h2 { font-size: 1.2rem; font-weight: 700; }
+  .dealer-info p { color: var(--muted); font-size: 0.82rem; margin-top: 3px; }
+  .dealer-info .tags { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+  .tag {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 3px 10px;
+    font-size: 0.72rem;
+    color: var(--muted);
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  /* ===== INSPECTION FORM STEPPER ===== */
+  .stepper-wrap {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 36px 28px;
+  }
+  .stepper-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 0;
+    margin-bottom: 40px;
+    overflow-x: auto;
+    padding-bottom: 4px;
+  }
+  .step-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    flex: 1;
+    min-width: 90px;
+    position: relative;
+  }
+  .step-item:not(:last-child)::after {
+    content: '';
+    position: absolute;
+    top: 18px;
+    left: 50%;
+    width: 100%;
+    height: 2px;
+    background: var(--border);
+    z-index: 0;
+    transition: background 0.3s ease;
+  }
+  .step-item.done:not(:last-child)::after { background: var(--accent); }
+  .step-dot {
+    width: 36px; height: 36px;
+    border-radius: 50%;
+    background: var(--surface2);
+    border: 2px solid var(--border);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.8rem;
+    font-weight: 700;
+    z-index: 1;
+    transition: all 0.25s ease;
+    position: relative;
+  }
+  .step-item.active .step-dot { background: var(--accent); border-color: var(--accent); color: #0d0f14; }
+  .step-item.done .step-dot { background: var(--success); border-color: var(--success); color: #0d0f14; }
+  .step-label {
+    margin-top: 8px;
+    font-size: 0.7rem;
+    color: var(--muted);
+    text-align: center;
+    font-weight: 500;
+    line-height: 1.3;
+    max-width: 80px;
+  }
+  .step-item.active .step-label { color: var(--accent); }
+  .step-item.done .step-label { color: var(--success); }
+
+  /* Step pages */
+  .step-page { display: none; animation: fadeSlide 0.35s ease; }
+  .step-page.active { display: block; }
+  @keyframes fadeSlide {
+    from { opacity: 0; transform: translateX(18px); }
+    to { opacity: 1; transform: translateX(0); }
+  }
+  .step-page-title {
+    font-size: 1.6rem;
+    font-weight: 700;
+    letter-spacing: -0.04em;
+    margin-bottom: 6px;
+  }
+  .step-page-subtitle {
+    color: var(--muted);
+    font-size: 0.88rem;
+    margin-bottom: 28px;
+  }
+  .step-nav {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 36px;
+    padding-top: 24px;
+    border-top: 1px solid var(--border);
+  }
+  .step-counter { color: var(--muted); font-size: 0.82rem; font-family: 'JetBrains Mono', monospace; }
+
+  /* ===== INSPECTION TABLE ===== */
+  .inspection-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 8px;
+  }
+  .inspection-table th {
+    background: var(--surface2);
+    padding: 10px 14px;
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+    font-weight: 600;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+  }
+  .inspection-table td {
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+    font-size: 0.85rem;
+    vertical-align: middle;
+  }
+  .inspection-table tr:last-child td { border-bottom: none; }
+  .inspection-table tr:nth-child(even) td { background: rgba(255,255,255,0.015); }
+
+  .status-select {
+    padding: 6px 10px;
+    font-size: 0.8rem;
+    border-radius: 6px;
+    min-width: 120px;
+  }
+  .condition-input {
+    padding: 6px 10px;
+    font-size: 0.8rem;
+    border-radius: 6px;
+    width: 100%;
+    min-width: 160px;
+  }
+  .part-name { font-weight: 600; color: var(--text); }
+  .subpart-name { color: var(--muted); font-size: 0.8rem; }
+
+  /* Status badges for preview */
+  .status-ok { color: var(--success); font-weight: 600; }
+  .status-issue { color: var(--danger); font-weight: 600; }
+  .status-na { color: var(--muted); }
+
+  /* ===== PDF PREVIEW MODAL ===== */
+  .modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.8);
+    z-index: 1000;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    width: 100%;
+    max-width: 560px;
+    max-height: 90vh;
+    overflow-y: auto;
+    padding: 36px;
+  }
+  .modal-title { font-size: 1.4rem; font-weight: 700; margin-bottom: 20px; }
+  .modal-actions { display: flex; gap: 10px; margin-top: 28px; justify-content: flex-end; }
+
+  /* ===== PDF TEMPLATE ===== */
+  #pdf-template {
+    display: none;
+    font-family: Arial, sans-serif;
+    font-size: 10px;
+    color: #333;
+    background: #fff;
+  }
+  .pdf-page {
+    width: 210mm;
+    min-height: 297mm;
+    padding: 14mm;
+    background: #fff;
+    page-break-after: always;
+    position: relative;
+  }
+  .pdf-page:last-child { page-break-after: avoid; }
+  .pdf-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 12px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #eee;
+  }
+  .pdf-logo-area {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .pdf-logo-box {
+    width: 52px; height: 36px;
+    background: #1a2340;
+    border-radius: 5px;
+    display: flex; align-items: center; justify-content: center;
+    color: #e8a020;
+    font-weight: 900;
+    font-size: 11px;
+    letter-spacing: -0.5px;
+  }
+  .pdf-company-name { font-size: 11px; font-weight: 700; color: #1a2340; }
+  .pdf-company-detail { font-size: 8px; color: #888; }
+  .pdf-report-title { text-align: center; }
+  .pdf-report-title .title { font-size: 12px; font-weight: 700; color: #1a2340; letter-spacing: 1px; }
+  .pdf-report-title .report-id { font-size: 9px; color: #666; }
+  .pdf-date-box {
+    background: #1a2340;
+    color: #fff;
+    padding: 6px 12px;
+    border-radius: 5px;
+    text-align: center;
+    font-size: 9px;
+    font-weight: 700;
+  }
+
+  .pdf-vehicle-section {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 12px;
+  }
+  .pdf-car-photo {
+    width: 200px;
+    height: 140px;
+    background: #f0f0f0;
+    border-radius: 6px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+  }
+  .pdf-car-photo img { width: 100%; height: 100%; object-fit: cover; border-radius: 6px; }
+  .pdf-car-photo .no-photo { color: #aaa; font-size: 9px; text-align: center; }
+  .pdf-vehicle-info { flex: 1; }
+  .pdf-vehicle-make { font-size: 16px; font-weight: 800; color: #1a2340; margin-bottom: 2px; }
+  .pdf-vehicle-variant { font-size: 9px; color: #888; margin-bottom: 10px; }
+  .pdf-info-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 4px 12px;
+  }
+  .pdf-info-row {
+    display: flex;
+    gap: 6px;
+    font-size: 9px;
+    padding: 3px 0;
+    border-bottom: 1px solid #f5f5f5;
+  }
+  .pdf-info-label { color: #999; min-width: 100px; }
+  .pdf-info-value { font-weight: 700; color: #1a2340; }
+
+  .pdf-section-title {
+    font-size: 11px;
+    font-weight: 700;
+    color: #e8a020;
+    border-bottom: 2px solid #e8a020;
+    padding-bottom: 4px;
+    margin-bottom: 8px;
+    margin-top: 12px;
+  }
+
+  .pdf-detail-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 8.5px;
+    margin-bottom: 10px;
+  }
+  .pdf-detail-table th {
+    background: #1a2340;
+    color: #fff;
+    padding: 5px 8px;
+    text-align: left;
+    font-size: 8px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+  }
+  .pdf-detail-table td {
+    padding: 5px 8px;
+    border-bottom: 1px solid #f0f0f0;
+    vertical-align: middle;
+  }
+  .pdf-detail-table tr:nth-child(even) td { background: #fafafa; }
+  .pdf-detail-table td:first-child { font-weight: 600; color: #333; }
+  .pdf-detail-table td.sub { color: #888; padding-left: 16px; }
+  .pdf-ok { color: #22c55e; font-weight: 700; }
+  .pdf-issue { color: #ef4444; font-weight: 700; }
+  .pdf-na { color: #aaa; }
+
+  .pdf-car-detail-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 8.5px;
+    border: 1px solid #e8e8e8;
+    border-radius: 6px;
+    overflow: hidden;
+    margin-top: 10px;
+  }
+  .pdf-car-detail-table td {
+    padding: 6px 10px;
+    border-bottom: 1px solid #f0f0f0;
+    border-right: 1px solid #f0f0f0;
+  }
+  .pdf-car-detail-table td:nth-child(odd) { color: #999; width: 25%; font-size: 8px; }
+  .pdf-car-detail-table td:nth-child(even) { font-weight: 700; color: #1a2340; width: 25%; }
+  .pdf-car-detail-table tr:last-child td { border-bottom: none; }
+
+  .pdf-footer {
+    position: absolute;
+    bottom: 10mm;
+    left: 14mm;
+    right: 14mm;
+    border-top: 1px solid #eee;
+    padding-top: 6px;
+    display: flex;
+    justify-content: space-between;
+    font-size: 7.5px;
+    color: #aaa;
+  }
+  .pdf-footer strong { color: #1a2340; }
+  .pdf-footer a { color: #aaa; }
+
+  .pdf-comments-box {
+    background: #f9f9f9;
+    border: 1px solid #e8e8e8;
+    border-radius: 5px;
+    padding: 10px;
+    font-size: 8.5px;
+    margin-top: 6px;
+  }
+  .pdf-comments-box .comment-cat { font-weight: 700; color: #1a2340; margin-bottom: 3px; font-size: 9px; }
+  .pdf-comments-box .comment-text { color: #555; }
+
+  /* ===== RESPONSIVE / MOBILE ===== */
+  @media (max-width: 768px) {
+    /* Header */
+    .app-header { padding: 0 14px; height: 56px; }
+    .logo span { font-size: 0.95rem; }
+    .header-actions { gap: 6px; }
+    .btn { padding: 7px 12px; font-size: 0.75rem; }
+    .header-actions .btn-ghost:not(:last-child) { display: none; }
+
+    /* Landing */
+    .landing { padding: 24px 14px; align-items: flex-start; padding-top: 36px; }
+    .landing-grid { grid-template-columns: 1fr; gap: 14px; }
+    .landing-header h1 { font-size: 2rem; }
+    .landing-card { padding: 28px 22px; border-radius: 14px; }
+    .card-icon { font-size: 2.2rem; margin-bottom: 12px; }
+    .card-title { font-size: 1.15rem; }
+
+    /* Dashboard */
+    .dashboard-layout { grid-template-columns: 1fr; }
+    .sidebar { display: none; }
+    .main-content { padding: 18px 14px; }
+    .section-title { font-size: 1.2rem; }
+    .dealer-preview { flex-direction: column; align-items: flex-start; gap: 12px; padding: 16px; }
+    .dealer-info .tags { flex-wrap: wrap; }
+
+    /* Mobile dashboard tab nav */
+    .mobile-dash-nav {
+      display: flex !important;
+      overflow-x: auto;
+      gap: 8px;
+      margin-bottom: 18px;
+      padding-bottom: 4px;
+      -webkit-overflow-scrolling: touch;
+    }
+    .mobile-dash-nav button {
+      white-space: nowrap;
+      padding: 8px 14px;
+      border-radius: 20px;
+      border: 1px solid var(--border);
+      background: var(--surface2);
+      color: var(--muted);
+      font-family: 'Sora', sans-serif;
+      font-size: 0.78rem;
+      font-weight: 600;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+    .mobile-dash-nav button.active { background: var(--accent); color: #0d0f14; border-color: var(--accent); }
+
+    /* Form grids */
+    .form-grid { grid-template-columns: 1fr; gap: 12px; }
+    .form-grid.cols-3 { grid-template-columns: 1fr; }
+    .form-group.full { grid-column: 1; }
+    .card { padding: 16px; border-radius: 10px; margin-bottom: 14px; }
+
+    /* Stepper */
+    .stepper-wrap { padding: 14px 12px; }
+    .stepper-header { margin-bottom: 20px; gap: 0; }
+    .step-item { min-width: 52px; }
+    .step-dot { width: 28px; height: 28px; font-size: 0.7rem; }
+    .step-item:not(:last-child)::after { top: 14px; }
+    .step-label { font-size: 0.6rem; max-width: 52px; margin-top: 5px; }
+    .step-page-title { font-size: 1.2rem; }
+    .step-page-subtitle { font-size: 0.82rem; margin-bottom: 16px; }
+    .step-nav { margin-top: 20px; padding-top: 16px; }
+
+    /* Inspection tables — card layout on mobile */
+    .inspection-table thead { display: none; }
+    .inspection-table, .inspection-table tbody, .inspection-table tr, .inspection-table td {
+      display: block;
+      width: 100%;
+    }
+    .inspection-table tr {
+      background: var(--surface2);
+      border-radius: 8px;
+      margin-bottom: 10px;
+      padding: 10px;
+      border: 1px solid var(--border);
+    }
+    .inspection-table td {
+      padding: 4px 0;
+      border: none;
+      font-size: 0.82rem;
+    }
+    .inspection-table td.part-name { font-size: 0.9rem; color: var(--accent); margin-bottom: 2px; }
+    .inspection-table td.subpart-name { color: var(--muted); margin-bottom: 6px; }
+    .status-select { min-width: unset; width: 100%; margin-bottom: 6px; }
+    .condition-input { min-width: unset; width: 100%; }
+
+    /* Step nav buttons full width */
+    .step-nav { flex-wrap: wrap; gap: 10px; }
+    .step-nav .btn { flex: 1; text-align: center; min-width: 100px; }
+
+    /* Done actions */
+    .done-actions { flex-direction: column; align-items: stretch; }
+    .done-actions .btn { text-align: center; }
+
+    /* Ref number bar */
+    .ref-bar { flex-direction: column; align-items: flex-start !important; gap: 8px !important; }
+    .ref-bar .ref-id { font-size: 0.8rem !important; }
+  }
+
+  @media (max-width: 420px) {
+    .landing-header h1 { font-size: 1.7rem; }
+    .app-header { padding: 0 10px; }
+  }
+
+  /* Mobile dash nav always hidden on desktop */
+  .mobile-dash-nav { display: none; }
+
+  /* ===== REF NUMBER BAR ===== */
+  .ref-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: linear-gradient(135deg, rgba(232,160,32,0.08), rgba(240,192,96,0.04));
+    border: 1px solid rgba(232,160,32,0.25);
+    border-radius: 10px;
+    padding: 12px 18px;
+    margin-bottom: 24px;
+    gap: 12px;
+  }
+  .ref-bar .ref-label { font-size: 0.72rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; font-weight: 600; }
+  .ref-bar .ref-id { font-family: 'JetBrains Mono', monospace; font-size: 0.95rem; color: var(--accent); font-weight: 700; letter-spacing: 0.05em; }
+  .ref-bar .ref-actions { display: flex; gap: 8px; }
+
+  /* ===== AUTOSAVE INDICATOR ===== */
+  .autosave-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 0.72rem;
+    color: var(--success);
+    font-weight: 600;
+    opacity: 0;
+    transition: opacity 0.4s ease;
+  }
+  .autosave-badge.show { opacity: 1; }
+  .autosave-dot { width: 6px; height: 6px; background: var(--success); border-radius: 50%; animation: pulse 1s ease infinite; }
+  @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.5;transform:scale(0.8)} }
+
+  /* New inspection confirm modal */
+  .confirm-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.75);
+    z-index: 200;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+  .confirm-overlay.open { display: flex; }
+  .confirm-box {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 32px;
+    max-width: 420px;
+    width: 100%;
+    text-align: center;
+  }
+  .confirm-box .confirm-icon { font-size: 2.5rem; margin-bottom: 14px; }
+  .confirm-box h3 { font-size: 1.2rem; font-weight: 700; margin-bottom: 8px; }
+  .confirm-box p { color: var(--muted); font-size: 0.86rem; line-height: 1.5; margin-bottom: 24px; }
+  .confirm-box .confirm-actions { display: flex; gap: 10px; justify-content: center; }
+
+  /* Tooltip-like highlight */
+  .highlight-box {
+    background: linear-gradient(135deg, rgba(232,160,32,0.1), rgba(240,192,96,0.05));
+    border: 1px solid rgba(232,160,32,0.2);
+    border-radius: 10px;
+    padding: 14px 18px;
+    margin-bottom: 18px;
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    font-size: 0.83rem;
+    color: var(--muted);
+  }
+  .highlight-box .icon { font-size: 1.1rem; flex-shrink: 0; margin-top: 1px; }
+
+  /* Logo upload area */
+  .logo-upload {
+    border: 2px dashed var(--border);
+    border-radius: 12px;
+    padding: 28px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    background: var(--surface2);
+  }
+  .logo-upload:hover { border-color: var(--accent); background: rgba(232,160,32,0.05); }
+  .logo-upload input { display: none; }
+  .logo-upload .upload-icon { font-size: 2.2rem; margin-bottom: 8px; }
+  .logo-upload p { color: var(--muted); font-size: 0.82rem; }
+  .logo-upload p strong { color: var(--accent); }
+  #logo-preview-wrap { margin-top: 12px; display: none; }
+  #logo-preview { max-height: 60px; border-radius: 8px; }
+  #car-photo-preview-wrap { margin-top: 12px; display: none; }
+  #car-photo-preview { max-height: 100px; border-radius: 8px; }
+
+  /* Done screen */
+  .done-screen {
+    text-align: center;
+    padding: 60px 20px;
+    max-width: 500px;
+    margin: 0 auto;
+  }
+  .done-screen .big-icon { font-size: 5rem; margin-bottom: 24px; }
+  .done-screen h2 { font-size: 2rem; font-weight: 700; margin-bottom: 10px; letter-spacing: -0.04em; }
+  .done-screen p { color: var(--muted); margin-bottom: 32px; line-height: 1.6; }
+  .done-actions { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+</style>
+</head>
+<body>
+
+<!-- ===== HEADER ===== -->
+<header class="app-header">
+  <div class="logo">
+    <div class="logo-icon">🚗</div>
+    <span>InspectPro</span>
+  </div>
+  <div class="header-actions">
+    <button class="btn btn-ghost" onclick="showView('landing')">Home</button>
+    <button class="btn btn-ghost" onclick="showView('dashboard')">Dealer Setup</button>
+    <button class="btn btn-accent" onclick="showView('form')">New Inspection</button>
+  </div>
+</header>
+
+<!-- ===== LANDING VIEW ===== -->
+<div id="view-landing" class="view active">
+  <div class="landing">
+    <div class="landing-grid">
+      <div class="landing-header">
+        <h1>Car <span>Inspection</span><br>Report Generator</h1>
+        <p>Professional multi-section inspection reports with custom dealer branding</p>
+      </div>
+      <div class="landing-card" onclick="showView('dashboard')">
+        <div class="card-icon">🏪</div>
+        <div class="card-title">Dealer Dashboard</div>
+        <div class="card-desc">Set up your dealership profile — logo, contact info, branch details. This info auto-fills every report you generate.</div>
+      </div>
+      <div class="landing-card" onclick="showView('form')">
+        <div class="card-icon">📋</div>
+        <div class="card-title">New Inspection</div>
+        <div class="card-desc">Step-by-step inspection form across 6 categories. Fill car details, exterior, electricals, engine, and more — then generate a PDF.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== DEALER DASHBOARD VIEW ===== -->
+<div id="view-dashboard" class="view">
+  <div class="dashboard-layout">
+    <aside class="sidebar">
+      <div class="sidebar-label">Dealer</div>
+      <div class="sidebar-section">
+        <div class="sidebar-item active" onclick="setDashTab(this,'tab-profile',null)">
+          <span class="icon">🏪</span> Dealership Profile
+        </div>
+        <div class="sidebar-item" onclick="setDashTab(this,'tab-contact',null)">
+          <span class="icon">📞</span> Contact & Address
+        </div>
+        <div class="sidebar-item" onclick="setDashTab(this,'tab-branding',null)">
+          <span class="icon">🎨</span> Branding & Logo
+        </div>
+        <div class="sidebar-item" onclick="setDashTab(this,'tab-branches',null)">
+          <span class="icon">📍</span> Branches
+        </div>
+      </div>
+      <div class="sidebar-label">Actions</div>
+      <div class="sidebar-section">
+        <div class="sidebar-item" onclick="saveDealerProfile()">
+          <span class="icon">💾</span> Save Profile
+        </div>
+        <div class="sidebar-item" onclick="showView('form')">
+          <span class="icon">📋</span> New Inspection
+        </div>
+      </div>
+    </aside>
+
+    <main class="main-content">
+      <!-- Mobile tab nav (visible only on mobile) -->
+      <div class="mobile-dash-nav">
+        <button class="active" onclick="setDashTab(null,'tab-profile',this)">🏪 Profile</button>
+        <button onclick="setDashTab(null,'tab-contact',this)">📞 Contact</button>
+        <button onclick="setDashTab(null,'tab-branding',this)">🎨 Branding</button>
+        <button onclick="setDashTab(null,'tab-branches',this)">📍 Branches</button>
+        <button onclick="saveDealerProfile()">💾 Save</button>
+      </div>
+      <!-- Profile Preview -->
+      <div class="dealer-preview">
+        <div class="dealer-avatar" id="dealer-avatar-preview">🏪</div>
+        <div class="dealer-info">
+          <h2 id="dp-name-preview">Your Dealership Name</h2>
+          <p id="dp-tagline-preview">City · Type of Dealership</p>
+          <div class="tags">
+            <span class="tag" id="dp-cin-preview">CIN: —</span>
+            <span class="tag" id="dp-email-preview">email@dealer.com</span>
+            <span class="tag" id="dp-phone-preview">+91 —</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab: Profile -->
+      <div id="tab-profile" class="dash-tab">
+        <div class="section-title">Dealership Profile</div>
+        <div class="section-subtitle">Basic information about your dealership</div>
+        <div class="card">
+          <div class="form-grid">
+            <div class="form-group">
+              <label>Company / Dealership Name</label>
+              <input type="text" id="d-name" placeholder="e.g. Sharma Auto Cars Pvt. Ltd." oninput="updateDealerPreview()">
+            </div>
+            <div class="form-group">
+              <label>Tagline / Type</label>
+              <input type="text" id="d-tagline" placeholder="e.g. Certified Pre-Owned Cars Dealer">
+            </div>
+            <div class="form-group">
+              <label>CIN / Registration Number</label>
+              <input type="text" id="d-cin" placeholder="e.g. U74999RJ2020PTC056789" oninput="updateDealerPreview()">
+            </div>
+            <div class="form-group">
+              <label>GST Number</label>
+              <input type="text" id="d-gst" placeholder="e.g. 08ABCDE1234F1Z5">
+            </div>
+            <div class="form-group">
+              <label>Year Established</label>
+              <input type="number" id="d-year" placeholder="e.g. 2010">
+            </div>
+            <div class="form-group">
+              <label>Website</label>
+              <input type="text" id="d-website" placeholder="e.g. www.sharmaautos.com">
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab: Contact -->
+      <div id="tab-contact" class="dash-tab" style="display:none">
+        <div class="section-title">Contact & Address</div>
+        <div class="section-subtitle">Details that appear on every inspection report footer</div>
+        <div class="card">
+          <div class="form-grid">
+            <div class="form-group">
+              <label>Primary Email</label>
+              <input type="email" id="d-email" placeholder="care@yourdealer.com" oninput="updateDealerPreview()">
+            </div>
+            <div class="form-group">
+              <label>Phone Number</label>
+              <input type="tel" id="d-phone" placeholder="+91 98765 43210" oninput="updateDealerPreview()">
+            </div>
+            <div class="form-group full">
+              <label>Registered Address (Full)</label>
+              <textarea id="d-address" placeholder="Floor, Tower, Building, Sector, City, State - PIN"></textarea>
+            </div>
+            <div class="form-group">
+              <label>City</label>
+              <input type="text" id="d-city" placeholder="e.g. Jaipur">
+            </div>
+            <div class="form-group">
+              <label>State</label>
+              <input type="text" id="d-state" placeholder="e.g. Rajasthan">
+            </div>
+            <div class="form-group">
+              <label>PIN Code</label>
+              <input type="text" id="d-pin" placeholder="e.g. 302001">
+            </div>
+            <div class="form-group">
+              <label>Country</label>
+              <input type="text" id="d-country" value="India">
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab: Branding -->
+      <div id="tab-branding" class="dash-tab" style="display:none">
+        <div class="section-title">Branding & Logo</div>
+        <div class="section-subtitle">Customize how your reports look</div>
+        <div class="card">
+          <div class="card-header"><h3>Company Logo</h3></div>
+          <label class="logo-upload" onclick="document.getElementById('logo-file').click()">
+            <input type="file" id="logo-file" accept="image/*" onchange="previewLogo(this)">
+            <div class="upload-icon">📁</div>
+            <p><strong>Click to upload logo</strong><br>PNG, JPG recommended · Max 2MB</p>
+            <div id="logo-preview-wrap"><img id="logo-preview" src="" alt="Logo Preview"></div>
+          </label>
+          <div class="form-grid" style="margin-top:20px">
+            <div class="form-group">
+              <label>Primary Brand Color (hex)</label>
+              <input type="color" id="d-color1" value="#1a2340" style="height:44px;padding:4px 8px;cursor:pointer">
+            </div>
+            <div class="form-group">
+              <label>Accent Color (hex)</label>
+              <input type="color" id="d-color2" value="#e8a020" style="height:44px;padding:4px 8px;cursor:pointer">
+            </div>
+          </div>
+          <div class="form-group" style="margin-top:8px">
+            <label>Report Footer Disclaimer / Terms</label>
+            <textarea id="d-disclaimer" placeholder="e.g. This report is generated for informational purposes. All inspections conducted by certified technicians."></textarea>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab: Branches -->
+      <div id="tab-branches" class="dash-tab" style="display:none">
+        <div class="section-title">Branches</div>
+        <div class="section-subtitle">Add inspection branches/locations used in reports</div>
+        <div class="card">
+          <div id="branches-list"></div>
+          <button class="btn btn-ghost" onclick="addBranch()" style="margin-top:12px">+ Add Branch</button>
+        </div>
+      </div>
+
+      <div style="padding-top:8px">
+        <button class="btn btn-accent" onclick="saveDealerProfile()">💾 Save Dealer Profile</button>
+        <button class="btn btn-ghost" style="margin-left:10px" onclick="showView('form')">→ Start New Inspection</button>
+      </div>
+    </main>
+  </div>
+</div>
+
+<!-- ===== INSPECTION FORM VIEW ===== -->
+<div id="view-form" class="view">
+  <div class="stepper-wrap">
+    <!-- Ref Bar -->
+    <div class="ref-bar" id="ref-bar">
+      <div>
+        <div class="ref-label">Report Reference</div>
+        <div class="ref-id" id="ref-display">—</div>
+      </div>
+      <div class="ref-actions">
+        <span class="autosave-badge" id="autosave-badge"><span class="autosave-dot"></span> Saved</span>
+        <button class="btn btn-ghost" style="font-size:0.75rem;padding:6px 12px" onclick="requestNewInspection()">+ New Report</button>
+      </div>
+    </div>
+    <!-- Steps Header -->
+    <div class="stepper-header" id="stepper-header">
+      <!-- Generated by JS -->
+    </div>
+
+    <!-- Step 0: Vehicle Info -->
+    <div class="step-page active" id="step-0">
+      <div class="step-page-title">🚗 Vehicle Information</div>
+      <div class="step-page-subtitle">Basic car and registration details</div>
+
+      <div class="card">
+        <div class="card-header"><h3>Car Details</h3></div>
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Report ID / Inspection Number</label>
+            <input type="text" id="f-report-id" placeholder="e.g. 10731460715/9715012">
+          </div>
+          <div class="form-group">
+            <label>Inspection Date</label>
+            <input type="date" id="f-date">
+          </div>
+          <div class="form-group">
+            <label>Make (Brand)</label>
+            <input type="text" id="f-make" placeholder="e.g. MARUTI SUZUKI">
+          </div>
+          <div class="form-group">
+            <label>Model</label>
+            <input type="text" id="f-model" placeholder="e.g. Baleno">
+          </div>
+          <div class="form-group full">
+            <label>Variant / Trim</label>
+            <input type="text" id="f-variant" placeholder="e.g. DELTA CVT PETROL 1.2 [2015 - 2019] - 2015">
+          </div>
+          <div class="form-group">
+            <label>Year of Manufacturing</label>
+            <input type="number" id="f-mfg-year" placeholder="2015">
+          </div>
+          <div class="form-group">
+            <label>Manufacturing Month</label>
+            <select id="f-mfg-month">
+              <option value="">Select Month</option>
+              <option>January</option><option>February</option><option>March</option>
+              <option>April</option><option>May</option><option>June</option>
+              <option>July</option><option>August</option><option>September</option>
+              <option>October</option><option>November</option><option>December</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Fuel Type</label>
+            <select id="f-fuel">
+              <option>Petrol</option><option>Diesel</option><option>CNG</option>
+              <option>Electric</option><option>Hybrid</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Odometer (KM)</label>
+            <input type="number" id="f-km" placeholder="92594">
+          </div>
+          <div class="form-group">
+            <label>Number of Owners</label>
+            <input type="number" id="f-owners" placeholder="2" min="1">
+          </div>
+          <div class="form-group">
+            <label>Duplicate Key Available?</label>
+            <select id="f-dupkey"><option>Yes</option><option>No</option></select>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header"><h3>Registration & Documentation</h3></div>
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Registration Number</label>
+            <input type="text" id="f-reg-num" placeholder="e.g. RJ14XXXXXX">
+          </div>
+          <div class="form-group">
+            <label>RTO</label>
+            <input type="text" id="f-rto" placeholder="e.g. RJ-14 JAIPUR SOUTH">
+          </div>
+          <div class="form-group">
+            <label>Registration Year</label>
+            <input type="number" id="f-reg-year" placeholder="2015">
+          </div>
+          <div class="form-group">
+            <label>Registration Month</label>
+            <select id="f-reg-month">
+              <option value="">Select Month</option>
+              <option>January</option><option>February</option><option>March</option>
+              <option>April</option><option>May</option><option>June</option>
+              <option>July</option><option>August</option><option>September</option>
+              <option>October</option><option>November</option><option>December</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Reg. State</label>
+            <input type="text" id="f-reg-state" placeholder="Rajasthan">
+          </div>
+          <div class="form-group">
+            <label>Reg. City</label>
+            <input type="text" id="f-reg-city" placeholder="Jaipur">
+          </div>
+          <div class="form-group">
+            <label>Fitness Upto</label>
+            <input type="text" id="f-fitness" placeholder="22-Dec-2030">
+          </div>
+          <div class="form-group">
+            <label>RC Availability</label>
+            <select id="f-rc">
+              <option>Available</option><option>Lost</option><option>Applied</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Insurance Type</label>
+            <select id="f-insurance-type">
+              <option>Comprehensive</option><option>3rd Party</option><option>Zero Dep</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Insurance Expiry</label>
+            <input type="text" id="f-insurance-expiry" placeholder="20-Dec-2026">
+          </div>
+          <div class="form-group">
+            <label>Road Tax Paid</label>
+            <select id="f-road-tax">
+              <option>OTT/LTT</option><option>Annual</option><option>Pending</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Road Tax Validity</label>
+            <input type="text" id="f-road-tax-date" placeholder="22-Dec-2030">
+          </div>
+          <div class="form-group">
+            <label>Under Hypothecation?</label>
+            <select id="f-hypo"><option>Yes</option><option>No</option></select>
+          </div>
+          <div class="form-group">
+            <label>RTO NOC Issued?</label>
+            <select id="f-noc"><option>No</option><option>Yes</option></select>
+          </div>
+          <div class="form-group">
+            <label>Chassis Number Embossing</label>
+            <select id="f-chassis"><option>Ok</option><option>Mismatch</option><option>Unclear</option></select>
+          </div>
+          <div class="form-group">
+            <label>Mismatch in RC</label>
+            <select id="f-mismatch"><option>No Mismatch</option><option>Mismatch Found</option></select>
+          </div>
+          <div class="form-group">
+            <label>CNG/LPG Fitment in RC</label>
+            <select id="f-cng"><option>N/A</option><option>Yes</option><option>No</option></select>
+          </div>
+          <div class="form-group">
+            <label>To Be Scrapped?</label>
+            <select id="f-scrap"><option>No</option><option>Yes</option></select>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header"><h3>Inspection Details</h3></div>
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Inspection At</label>
+            <select id="f-inspection-at"><option>Doorstep</option><option>Branch</option><option>Workshop</option></select>
+          </div>
+          <div class="form-group">
+            <label>Branch</label>
+            <select id="f-branch-select">
+              <option value="">Select Branch</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header"><h3>Car Photo (Front)</h3></div>
+        <label class="logo-upload" onclick="document.getElementById('car-photo-file').click()">
+          <input type="file" id="car-photo-file" accept="image/*" onchange="previewCarPhoto(this)">
+          <div class="upload-icon">📷</div>
+          <p><strong>Upload front photo of the car</strong><br>Appears on the first page of the report</p>
+          <div id="car-photo-preview-wrap"><img id="car-photo-preview" src="" alt="Car Photo"></div>
+        </label>
+      </div>
+    </div>
+
+    <!-- Step 1: Exterior + Tyres -->
+    <div class="step-page" id="step-1">
+      <div class="step-page-title">🔩 Exterior + Tyres</div>
+      <div class="step-page-subtitle">Body panel condition, paint, and tyre tread depth</div>
+      <div class="card">
+        <table class="inspection-table" id="tbl-exterior"></table>
+      </div>
+    </div>
+
+    <!-- Step 2: Electricals + Interior -->
+    <div class="step-page" id="step-2">
+      <div class="step-page-title">⚡ Electricals + Interior</div>
+      <div class="step-page-subtitle">Electronics, seats, windows, and interior features</div>
+      <div class="card">
+        <table class="inspection-table" id="tbl-electrical"></table>
+      </div>
+    </div>
+
+    <!-- Step 3: Engine + Transmission -->
+    <div class="step-page" id="step-3">
+      <div class="step-page-title">🔧 Engine + Transmission</div>
+      <div class="step-page-subtitle">Engine health, oil, coolant, and gearbox</div>
+      <div class="card">
+        <table class="inspection-table" id="tbl-engine"></table>
+      </div>
+    </div>
+
+    <!-- Step 4: Steering/Suspension + AC -->
+    <div class="step-page" id="step-4">
+      <div class="step-page-title">🛞 Steering, Suspension, Brakes & AC</div>
+      <div class="step-page-subtitle">Handling, braking performance, and air conditioning</div>
+      <div class="card">
+        <table class="inspection-table" id="tbl-chassis"></table>
+      </div>
+    </div>
+
+    <!-- Step 5: Comments + Review -->
+    <div class="step-page" id="step-5">
+      <div class="step-page-title">💬 Comments & Review</div>
+      <div class="step-page-subtitle">Add final notes and generate the PDF report</div>
+
+      <div class="highlight-box">
+        <span class="icon">💡</span>
+        <span>Comments appear in a dedicated section on the last page of the report. Add any category-specific notes below.</span>
+      </div>
+
+      <div class="card">
+        <div class="card-header"><h3>Section Comments</h3></div>
+        <div class="form-grid cols-1">
+          <div class="form-group">
+            <label>Exterior + Tyres Comments</label>
+            <textarea id="c-exterior" placeholder="e.g. Overall paint condition is fair, multiple repainted panels noted..."></textarea>
+          </div>
+          <div class="form-group">
+            <label>Electricals + Interior Comments</label>
+            <textarea id="c-electrical" placeholder="e.g. Navigation chip not available, ABS warning light glowing..."></textarea>
+          </div>
+          <div class="form-group">
+            <label>Engine + Transmission Comments</label>
+            <textarea id="c-engine" placeholder="e.g. Oil spillage observed, transmission needs attention..."></textarea>
+          </div>
+          <div class="form-group">
+            <label>Steering / Suspension / Brakes Comments</label>
+            <textarea id="c-chassis" placeholder="e.g. Abnormal noise in steering and suspension..."></textarea>
+          </div>
+          <div class="form-group">
+            <label>Air Conditioning Comments</label>
+            <textarea id="c-ac" placeholder="e.g. Compressor noise noted..."></textarea>
+          </div>
+        </div>
+      </div>
+
+      <div class="done-actions">
+        <button class="btn btn-accent" style="font-size:1rem;padding:14px 32px;" onclick="generatePDF()">
+          📄 Generate PDF Report
+        </button>
+      </div>
+    </div>
+
+    <!-- Step Nav -->
+    <div class="step-nav">
+      <button class="btn btn-ghost" id="btn-prev" onclick="changeStep(-1)">← Previous</button>
+      <span class="step-counter" id="step-counter">Step 1 of 6</span>
+      <button class="btn btn-accent" id="btn-next" onclick="changeStep(1)">Next →</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== NEW INSPECTION CONFIRM MODAL ===== -->
+<div class="confirm-overlay" id="confirm-new">
+  <div class="confirm-box">
+    <div class="confirm-icon">⚠️</div>
+    <h3>Start New Inspection?</h3>
+    <p>You have an inspection in progress. Starting a new one will clear all current form data. This cannot be undone.</p>
+    <div class="confirm-actions">
+      <button class="btn btn-ghost" onclick="closeConfirm()">Keep Editing</button>
+      <button class="btn btn-danger" onclick="confirmNewInspection()">Clear & Start New</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== PDF TEMPLATE (hidden, used for generation) ===== -->
+<div id="pdf-template"></div>
+
+<script>
+// ===== APP STATE =====
+let currentView = 'landing';
+let currentStep = 0;
+const totalSteps = 6;
+
+let dealerProfile = {
+  name: '', tagline: '', cin: '', gst: '', year: '', website: '',
+  email: '', phone: '', address: '', city: '', state: '', pin: '', country: 'India',
+  logo: '', color1: '#1a2340', color2: '#e8a020', disclaimer: '',
+  branches: []
+};
+
+// ===== REFERENCE NUMBER =====
+function generateRefNumber() {
+  const now = new Date();
+  const datePart = now.getFullYear().toString() +
+    String(now.getMonth()+1).padStart(2,'0') +
+    String(now.getDate()).padStart(2,'0');
+  const timePart = String(now.getHours()).padStart(2,'0') +
+    String(now.getMinutes()).padStart(2,'0') +
+    String(now.getSeconds()).padStart(2,'0');
+  const rand = Math.floor(1000 + Math.random() * 9000);
+  return `INS-${datePart}-${timePart}-${rand}`;
+}
+
+let currentRefNumber = '';
+
+function getOrCreateRef() {
+  const saved = localStorage.getItem('inspection_ref');
+  if (saved) return saved;
+  const ref = generateRefNumber();
+  localStorage.setItem('inspection_ref', ref);
+  return ref;
+}
+
+// ===== FORM AUTO-SAVE / RESTORE =====
+const FORM_STORAGE_KEY = 'inspection_form_data';
+
+// All plain input/select/textarea field IDs in the form
+const formFieldIds = [
+  'f-report-id','f-date','f-make','f-model','f-variant','f-mfg-year','f-mfg-month',
+  'f-fuel','f-km','f-owners','f-dupkey','f-reg-num','f-rto','f-reg-year','f-reg-month',
+  'f-reg-state','f-reg-city','f-fitness','f-rc','f-insurance-type','f-insurance-expiry',
+  'f-road-tax','f-road-tax-date','f-hypo','f-noc','f-chassis','f-mismatch','f-cng',
+  'f-scrap','f-inspection-at','f-branch-select',
+  'c-exterior','c-electrical','c-engine','c-chassis','c-ac'
+];
+
+function collectFormData() {
+  const data = {};
+  formFieldIds.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) data[id] = el.value;
+  });
+  // Inspection table fields
+  [...exteriorRows, ...electricalRows, ...engineRows, ...chassisRows].forEach(r => {
+    const s = document.getElementById(r.statusField);
+    const c = document.getElementById(r.condField);
+    if (s) data[r.statusField] = s.value;
+    if (c) data[r.condField] = c.value;
+  });
+  if (carPhotoData) data['_carPhoto'] = carPhotoData;
+  return data;
+}
+
+function saveFormData() {
+  const data = collectFormData();
+  localStorage.setItem(FORM_STORAGE_KEY, JSON.stringify(data));
+  // Flash autosave badge
+  const badge = document.getElementById('autosave-badge');
+  if (badge) {
+    badge.classList.add('show');
+    clearTimeout(badge._timer);
+    badge._timer = setTimeout(() => badge.classList.remove('show'), 2200);
+  }
+}
+
+function restoreFormData() {
+  const raw = localStorage.getItem(FORM_STORAGE_KEY);
+  if (!raw) return;
+  const data = JSON.parse(raw);
+  formFieldIds.forEach(id => {
+    const el = document.getElementById(id);
+    if (el && data[id] !== undefined) el.value = data[id];
+  });
+  [...exteriorRows, ...electricalRows, ...engineRows, ...chassisRows].forEach(r => {
+    const s = document.getElementById(r.statusField);
+    const c = document.getElementById(r.condField);
+    if (s && data[r.statusField] !== undefined) s.value = data[r.statusField];
+    if (c && data[r.condField] !== undefined) c.value = data[r.condField];
+  });
+  if (data['_carPhoto']) {
+    carPhotoData = data['_carPhoto'];
+    const prev = document.getElementById('car-photo-preview');
+    const wrap = document.getElementById('car-photo-preview-wrap');
+    if (prev && wrap) { prev.src = carPhotoData; wrap.style.display = 'block'; }
+  }
+}
+
+function clearFormData() {
+  localStorage.removeItem(FORM_STORAGE_KEY);
+  localStorage.removeItem('inspection_ref');
+  carPhotoData = '';
+}
+
+// Attach autosave listeners after DOM is ready (called after buildTable)
+function attachAutoSaveListeners() {
+  // All form inputs
+  document.querySelectorAll('#view-form input, #view-form select, #view-form textarea').forEach(el => {
+    el.addEventListener('change', saveFormData);
+    el.addEventListener('input', saveFormData);
+  });
+}
+
+// ===== NEW INSPECTION FLOW =====
+function requestNewInspection() {
+  const hasData = localStorage.getItem(FORM_STORAGE_KEY);
+  if (hasData) {
+    document.getElementById('confirm-new').classList.add('open');
+  } else {
+    startFreshInspection();
+  }
+}
+
+function closeConfirm() {
+  document.getElementById('confirm-new').classList.remove('open');
+}
+
+function confirmNewInspection() {
+  closeConfirm();
+  startFreshInspection();
+}
+
+function startFreshInspection() {
+  clearFormData();
+  // Reset all form fields
+  formFieldIds.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) {
+      if (el.tagName === 'SELECT') el.selectedIndex = 0;
+      else el.value = '';
+    }
+  });
+  [...exteriorRows, ...electricalRows, ...engineRows, ...chassisRows].forEach(r => {
+    const s = document.getElementById(r.statusField);
+    const c = document.getElementById(r.condField);
+    if (s) s.selectedIndex = 0;
+    if (c) c.value = '';
+  });
+  document.getElementById('car-photo-preview-wrap').style.display = 'none';
+  document.getElementById('car-photo-preview').src = '';
+  carPhotoData = '';
+  // New ref
+  currentRefNumber = generateRefNumber();
+  localStorage.setItem('inspection_ref', currentRefNumber);
+  document.getElementById('ref-display').textContent = currentRefNumber;
+  document.getElementById('f-report-id').value = currentRefNumber;
+  document.getElementById('f-date').value = new Date().toISOString().split('T')[0];
+  // Go to step 0
+  document.querySelectorAll('.step-page').forEach(p => p.classList.remove('active'));
+  document.getElementById('step-0').classList.add('active');
+  currentStep = 0;
+  updateStepper();
+  saveFormData();
+}
+
+// ===== DEALER PROFILE =====
+function loadDealer() {
+  const saved = localStorage.getItem('dealer_profile');
+  if (saved) {
+    dealerProfile = JSON.parse(saved);
+    populateDealerFields();
+  }
+}
+
+function populateDealerFields() {
+  const f = (id, val) => { const el = document.getElementById(id); if(el && val) el.value = val; };
+  f('d-name', dealerProfile.name); f('d-tagline', dealerProfile.tagline);
+  f('d-cin', dealerProfile.cin); f('d-gst', dealerProfile.gst);
+  f('d-year', dealerProfile.year); f('d-website', dealerProfile.website);
+  f('d-email', dealerProfile.email); f('d-phone', dealerProfile.phone);
+  f('d-address', dealerProfile.address); f('d-city', dealerProfile.city);
+  f('d-state', dealerProfile.state); f('d-pin', dealerProfile.pin);
+  f('d-color1', dealerProfile.color1); f('d-color2', dealerProfile.color2);
+  f('d-disclaimer', dealerProfile.disclaimer);
+  if (dealerProfile.logo) {
+    document.getElementById('logo-preview').src = dealerProfile.logo;
+    document.getElementById('logo-preview-wrap').style.display = 'block';
+  }
+  if (dealerProfile.branches.length) renderBranches();
+  updateDealerPreview();
+}
+
+function saveDealerProfile() {
+  dealerProfile.name = document.getElementById('d-name').value;
+  dealerProfile.tagline = document.getElementById('d-tagline').value;
+  dealerProfile.cin = document.getElementById('d-cin').value;
+  dealerProfile.gst = document.getElementById('d-gst').value;
+  dealerProfile.year = document.getElementById('d-year').value;
+  dealerProfile.website = document.getElementById('d-website').value;
+  dealerProfile.email = document.getElementById('d-email').value;
+  dealerProfile.phone = document.getElementById('d-phone').value;
+  dealerProfile.address = document.getElementById('d-address').value;
+  dealerProfile.city = document.getElementById('d-city').value;
+  dealerProfile.state = document.getElementById('d-state').value;
+  dealerProfile.pin = document.getElementById('d-pin').value;
+  dealerProfile.color1 = document.getElementById('d-color1').value;
+  dealerProfile.color2 = document.getElementById('d-color2').value;
+  dealerProfile.disclaimer = document.getElementById('d-disclaimer').value;
+  localStorage.setItem('dealer_profile', JSON.stringify(dealerProfile));
+  updateDealerPreview();
+  populateBranchDropdown();
+
+  // Feedback on all save buttons
+  document.querySelectorAll('[onclick*="saveDealerProfile"]').forEach(btn => {
+    const orig = btn.textContent;
+    btn.textContent = '✅ Saved!';
+    setTimeout(() => btn.textContent = orig, 2000);
+  });
+}
+
+function updateDealerPreview() {
+  const name = document.getElementById('d-name')?.value || 'Your Dealership Name';
+  const cin = document.getElementById('d-cin')?.value || '—';
+  const email = document.getElementById('d-email')?.value || 'email@dealer.com';
+  const phone = document.getElementById('d-phone')?.value || '—';
+  const city = document.getElementById('d-city')?.value || '';
+  const tagline = document.getElementById('d-tagline')?.value || 'Type of Dealership';
+
+  document.getElementById('dp-name-preview').textContent = name;
+  document.getElementById('dp-tagline-preview').textContent = [city, tagline].filter(Boolean).join(' · ');
+  document.getElementById('dp-cin-preview').textContent = 'CIN: ' + cin;
+  document.getElementById('dp-email-preview').textContent = email;
+  document.getElementById('dp-phone-preview').textContent = phone;
+}
+
+// Branches
+function addBranch() {
+  const list = document.getElementById('branches-list');
+  const div = document.createElement('div');
+  div.style.cssText = 'display:grid;grid-template-columns:1fr 1fr auto;gap:10px;margin-bottom:10px;align-items:end';
+  div.innerHTML = `
+    <div class="form-group"><label>Branch Name</label><input type="text" class="branch-name" placeholder="e.g. HI-Old City Jaipur"></div>
+    <div class="form-group"><label>City</label><input type="text" class="branch-city" placeholder="e.g. Jaipur"></div>
+    <button class="btn btn-ghost" onclick="this.parentElement.remove();saveBranches()" style="margin-bottom:0;height:44px">✕</button>
+  `;
+  list.appendChild(div);
+  div.querySelector('.branch-name').addEventListener('input', saveBranches);
+  div.querySelector('.branch-city').addEventListener('input', saveBranches);
+}
+
+function renderBranches() {
+  document.getElementById('branches-list').innerHTML = '';
+  dealerProfile.branches.forEach(b => {
+    addBranch();
+    const items = document.querySelectorAll('.branch-name');
+    const cityItems = document.querySelectorAll('.branch-city');
+    items[items.length-1].value = b.name;
+    cityItems[cityItems.length-1].value = b.city;
+  });
+}
+
+function saveBranches() {
+  const names = document.querySelectorAll('.branch-name');
+  const cities = document.querySelectorAll('.branch-city');
+  dealerProfile.branches = [];
+  names.forEach((n, i) => {
+    if (n.value) dealerProfile.branches.push({ name: n.value, city: cities[i]?.value || '' });
+  });
+  populateBranchDropdown();
+}
+
+function populateBranchDropdown() {
+  const sel = document.getElementById('f-branch-select');
+  if (!sel) return;
+  const saved = sel.value;
+  sel.innerHTML = '<option value="">Select Branch</option>';
+  dealerProfile.branches.forEach(b => {
+    const opt = document.createElement('option');
+    opt.value = b.name;
+    opt.textContent = b.name + (b.city ? ' — ' + b.city : '');
+    sel.appendChild(opt);
+  });
+  sel.value = saved;
+}
+
+// ===== DASHBOARD TABS =====
+function setDashTab(el, tabId, mobileBtn) {
+  // Desktop sidebar
+  document.querySelectorAll('.sidebar-item').forEach(i => i.classList.remove('active'));
+  if (el) el.classList.add('active');
+  // Mobile nav
+  document.querySelectorAll('.mobile-dash-nav button').forEach(b => b.classList.remove('active'));
+  if (mobileBtn) mobileBtn.classList.add('active');
+  // Tabs
+  document.querySelectorAll('.dash-tab').forEach(t => t.style.display = 'none');
+  document.getElementById(tabId).style.display = 'block';
+}
+
+// ===== LOGO & PHOTO UPLOAD =====
+function previewLogo(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    dealerProfile.logo = e.target.result;
+    document.getElementById('logo-preview').src = e.target.result;
+    document.getElementById('logo-preview-wrap').style.display = 'block';
+  };
+  reader.readAsDataURL(file);
+}
+
+let carPhotoData = '';
+function previewCarPhoto(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    carPhotoData = e.target.result;
+    document.getElementById('car-photo-preview').src = e.target.result;
+    document.getElementById('car-photo-preview-wrap').style.display = 'block';
+    saveFormData();
+  };
+  reader.readAsDataURL(file);
+}
+
+// ===== VIEW SWITCHER =====
+function showView(name) {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.getElementById('view-' + name).classList.add('active');
+  currentView = name;
+  if (name === 'form') {
+    buildStepperHeader();
+    populateBranchDropdown();
+    // Restore ref
+    currentRefNumber = getOrCreateRef();
+    document.getElementById('ref-display').textContent = currentRefNumber;
+    // Restore saved form data
+    restoreFormData();
+    // Set date if empty
+    if (!document.getElementById('f-date').value) {
+      document.getElementById('f-date').value = new Date().toISOString().split('T')[0];
+    }
+    // Set report ID if empty
+    if (!document.getElementById('f-report-id').value) {
+      document.getElementById('f-report-id').value = currentRefNumber;
+      saveFormData();
+    }
+    updateStepper();
+  }
+  window.scrollTo(0, 0);
+}
+
+// ===== STEPPER =====
+const stepLabels = ['Vehicle Info', 'Exterior + Tyres', 'Electricals', 'Engine', 'Steering / AC', 'Comments'];
+
+function buildStepperHeader() {
+  const hdr = document.getElementById('stepper-header');
+  hdr.innerHTML = stepLabels.map((l, i) => `
+    <div class="step-item ${i === currentStep ? 'active' : i < currentStep ? 'done' : ''}" id="stepitem-${i}">
+      <div class="step-dot">${i < currentStep ? '✓' : i + 1}</div>
+      <div class="step-label">${l}</div>
+    </div>
+  `).join('');
+}
+
+function updateStepper() {
+  document.querySelectorAll('.step-item').forEach((el, i) => {
+    el.className = 'step-item ' + (i === currentStep ? 'active' : i < currentStep ? 'done' : '');
+    el.querySelector('.step-dot').textContent = i < currentStep ? '✓' : i + 1;
+  });
+  document.getElementById('step-counter').textContent = `Step ${currentStep + 1} of ${totalSteps}`;
+  document.getElementById('btn-prev').style.visibility = currentStep === 0 ? 'hidden' : 'visible';
+  document.getElementById('btn-next').style.display = currentStep === totalSteps - 1 ? 'none' : 'inline-block';
+}
+
+function changeStep(dir) {
+  // Save before moving
+  saveFormData();
+  document.getElementById('step-' + currentStep).classList.remove('active');
+  currentStep = Math.max(0, Math.min(totalSteps - 1, currentStep + dir));
+  document.getElementById('step-' + currentStep).classList.add('active');
+  updateStepper();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// ===== INSPECTION TABLE DATA =====
+const exteriorRows = [
+  { part: 'Bumper', sub: 'Front', statusField: 'ext-bumper-f-s', condField: 'ext-bumper-f-c' },
+  { part: '', sub: 'Rear', statusField: 'ext-bumper-r-s', condField: 'ext-bumper-r-c' },
+  { part: 'Bonnet/Hood', sub: '-', statusField: 'ext-bonnet-s', condField: 'ext-bonnet-c' },
+  { part: 'Roof', sub: '-', statusField: 'ext-roof-s', condField: 'ext-roof-c' },
+  { part: 'Fender', sub: 'LHS', statusField: 'ext-fender-l-s', condField: 'ext-fender-l-c' },
+  { part: '', sub: 'RHS', statusField: 'ext-fender-r-s', condField: 'ext-fender-r-c' },
+  { part: 'Door', sub: 'LHS Front', statusField: 'ext-door-lf-s', condField: 'ext-door-lf-c' },
+  { part: '', sub: 'LHS Rear', statusField: 'ext-door-lr-s', condField: 'ext-door-lr-c' },
+  { part: '', sub: 'RHS Front', statusField: 'ext-door-rf-s', condField: 'ext-door-rf-c' },
+  { part: '', sub: 'RHS Rear', statusField: 'ext-door-rr-s', condField: 'ext-door-rr-c' },
+  { part: 'Pillar', sub: 'LHS A', statusField: 'ext-pillar-la-s', condField: 'ext-pillar-la-c' },
+  { part: '', sub: 'LHS B', statusField: 'ext-pillar-lb-s', condField: 'ext-pillar-lb-c' },
+  { part: '', sub: 'LHS C', statusField: 'ext-pillar-lc-s', condField: 'ext-pillar-lc-c' },
+  { part: '', sub: 'RHS A', statusField: 'ext-pillar-ra-s', condField: 'ext-pillar-ra-c' },
+  { part: '', sub: 'RHS B', statusField: 'ext-pillar-rb-s', condField: 'ext-pillar-rb-c' },
+  { part: '', sub: 'RHS C', statusField: 'ext-pillar-rc-s', condField: 'ext-pillar-rc-c' },
+  { part: 'Running Border', sub: 'LHS', statusField: 'ext-rb-l-s', condField: 'ext-rb-l-c' },
+  { part: '', sub: 'RHS', statusField: 'ext-rb-r-s', condField: 'ext-rb-r-c' },
+  { part: 'Quarter Panel', sub: 'LHS', statusField: 'ext-qp-l-s', condField: 'ext-qp-l-c' },
+  { part: '', sub: 'RHS', statusField: 'ext-qp-r-s', condField: 'ext-qp-r-c' },
+  { part: 'Dicky/Boot Door', sub: '-', statusField: 'ext-dicky-s', condField: 'ext-dicky-c' },
+  { part: 'Boot Floor', sub: '-', statusField: 'ext-bootfloor-s', condField: 'ext-bootfloor-c' },
+  { part: 'Apron', sub: 'LHS', statusField: 'ext-apron-l-s', condField: 'ext-apron-l-c' },
+  { part: '', sub: 'RHS', statusField: 'ext-apron-r-s', condField: 'ext-apron-r-c' },
+  { part: '', sub: 'LHS LEG', statusField: 'ext-apron-ll-s', condField: 'ext-apron-ll-c' },
+  { part: '', sub: 'RHS LEG', statusField: 'ext-apron-rl-s', condField: 'ext-apron-rl-c' },
+  { part: 'Firewall', sub: '-', statusField: 'ext-firewall-s', condField: 'ext-firewall-c' },
+  { part: 'Cowl Top', sub: '-', statusField: 'ext-cowltop-s', condField: 'ext-cowltop-c' },
+  { part: 'Lower Cross Member', sub: '-', statusField: 'ext-lcm-s', condField: 'ext-lcm-c' },
+  { part: 'Upper Cross Member (Bonnet Patti)', sub: '-', statusField: 'ext-ucm-s', condField: 'ext-ucm-c' },
+  { part: 'Head Light Support', sub: '-', statusField: 'ext-hls-s', condField: 'ext-hls-c' },
+  { part: 'Radiator Support', sub: '-', statusField: 'ext-rad-s', condField: 'ext-rad-c' },
+  { part: 'Windshield', sub: 'Front', statusField: 'ext-ws-f-s', condField: 'ext-ws-f-c' },
+  { part: '', sub: 'Rear', statusField: 'ext-ws-r-s', condField: 'ext-ws-r-c' },
+  { part: 'ORVM', sub: 'LHS', statusField: 'ext-orvm-l-s', condField: 'ext-orvm-l-c' },
+  { part: '', sub: 'RHS', statusField: 'ext-orvm-r-s', condField: 'ext-orvm-r-c' },
+  { part: 'Light', sub: 'LHS Headlight', statusField: 'ext-lhl-s', condField: 'ext-lhl-c' },
+  { part: '', sub: 'RHS Headlight', statusField: 'ext-rhl-s', condField: 'ext-rhl-c' },
+  { part: '', sub: 'LHS Taillight', statusField: 'ext-ltl-s', condField: 'ext-ltl-c' },
+  { part: '', sub: 'RHS Taillight', statusField: 'ext-rtl-s', condField: 'ext-rtl-c' },
+  { part: 'Alloy Wheel', sub: '-', statusField: 'ext-alloy-s', condField: 'ext-alloy-c' },
+  { part: 'LHS Front Tyre', sub: '-', statusField: 'ext-tfl-s', condField: 'ext-tfl-c', tyreDepth: true },
+  { part: 'RHS Front Tyre', sub: '-', statusField: 'ext-tfr-s', condField: 'ext-tfr-c', tyreDepth: true },
+  { part: 'LHS Rear Tyre', sub: '-', statusField: 'ext-trl-s', condField: 'ext-trl-c', tyreDepth: true },
+  { part: 'RHS Rear Tyre', sub: '-', statusField: 'ext-trr-s', condField: 'ext-trr-c', tyreDepth: true },
+  { part: 'Spare Tyre', sub: '-', statusField: 'ext-tsp-s', condField: 'ext-tsp-c', tyreDepth: true },
+];
+
+const electricalRows = [
+  { part: 'No. Of Power Windows', sub: '-', statusField: 'el-pw-s', condField: 'el-pw-c', numeric: true },
+  { part: 'No. Of Airbags', sub: '-', statusField: 'el-ab-s', condField: 'el-ab-c', numeric: true },
+  { part: 'Power Windows', sub: '-', statusField: 'el-pw2-s', condField: 'el-pw2-c' },
+  { part: 'Electrical', sub: '-', statusField: 'el-elec-s', condField: 'el-elec-c' },
+  { part: 'Interior', sub: '-', statusField: 'el-int-s', condField: 'el-int-c' },
+  { part: 'Airbag Feature', sub: '-', statusField: 'el-abf-s', condField: 'el-abf-c' },
+  { part: 'Music System', sub: '-', statusField: 'el-music-s', condField: 'el-music-c' },
+  { part: 'Leather Seat', sub: '-', statusField: 'el-ls-s', condField: 'el-ls-c' },
+  { part: 'Fabric Seat', sub: '-', statusField: 'el-fs-s', condField: 'el-fs-c' },
+  { part: 'Sunroof', sub: '-', statusField: 'el-sr-s', condField: 'el-sr-c' },
+  { part: 'Steering Mounted Audio Control', sub: '-', statusField: 'el-smac-s', condField: 'el-smac-c' },
+  { part: 'ABS', sub: '-', statusField: 'el-abs-s', condField: 'el-abs-c' },
+  { part: 'Rear Defogger', sub: '-', statusField: 'el-rd-s', condField: 'el-rd-c' },
+  { part: 'Reverse Camera', sub: '-', statusField: 'el-rc-s', condField: 'el-rc-c' },
+  { part: 'Navigation Chip', sub: '-', statusField: 'el-nav-s', condField: 'el-nav-c' },
+];
+
+const engineRows = [
+  { part: 'Engine', sub: '-', statusField: 'en-eng-s', condField: 'en-eng-c' },
+  { part: 'Battery', sub: '-', statusField: 'en-bat-s', condField: 'en-bat-c' },
+  { part: 'Engine Oil Level Dipstick', sub: '-', statusField: 'en-dipstick-s', condField: 'en-dipstick-c' },
+  { part: 'Engine Oil', sub: '-', statusField: 'en-eoil-s', condField: 'en-eoil-c' },
+  { part: 'Coolant', sub: '-', statusField: 'en-cool-s', condField: 'en-cool-c' },
+  { part: 'Engine Mounting', sub: '-', statusField: 'en-mount-s', condField: 'en-mount-c' },
+  { part: 'Engine Sound', sub: '-', statusField: 'en-sound-s', condField: 'en-sound-c' },
+  { part: 'Exhaust Smoke', sub: '-', statusField: 'en-smoke-s', condField: 'en-smoke-c' },
+  { part: 'Clutch', sub: '-', statusField: 'en-clutch-s', condField: 'en-clutch-c' },
+  { part: 'Gear Shifting', sub: '-', statusField: 'en-gear-s', condField: 'en-gear-c' },
+  { part: 'Turbo Charger', sub: '-', statusField: 'en-turbo-s', condField: 'en-turbo-c' },
+  { part: 'Fuel Injector', sub: '-', statusField: 'en-inj-s', condField: 'en-inj-c' },
+];
+
+const chassisRows = [
+  { part: 'Steering', sub: '-', statusField: 'ch-steer-s', condField: 'ch-steer-c' },
+  { part: 'Suspension', sub: '-', statusField: 'ch-susp-s', condField: 'ch-susp-c' },
+  { part: 'Brake', sub: '-', statusField: 'ch-brake-s', condField: 'ch-brake-c' },
+  { part: 'AC Cooling', sub: '-', statusField: 'ch-acc-s', condField: 'ch-acc-c' },
+  { part: 'Heater', sub: '-', statusField: 'ch-heat-s', condField: 'ch-heat-c' },
+  { part: 'Climate Control AC', sub: '-', statusField: 'ch-ccac-s', condField: 'ch-ccac-c' },
+];
+
+const tyreOptions = ['5 - 6 mm', '6 - 7 mm', '7+ mm', '3 - 4 mm', '4 - 5 mm'];
+
+function buildTable(tableId, rows) {
+  const tbl = document.getElementById(tableId);
+  tbl.innerHTML = `
+    <thead>
+      <tr>
+        <th style="width:24%">Part</th>
+        <th style="width:16%">Subpart</th>
+        <th style="width:18%">Status</th>
+        <th>Work Done / Current Condition</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${rows.map(r => {
+        const statusOpts = r.tyreDepth
+          ? tyreOptions.map(o => `<option>${o}</option>`).join('')
+          : r.numeric
+          ? `<option>1</option><option>2</option><option>3</option><option>4</option>`
+          : `<option value="ok">✓ OK</option><option value="issue">✗ Issue</option><option value="na">N/A</option>`;
+        const partLabel = r.part ? `<span class="part-name">${r.part}</span>` : '';
+        return `<tr>
+          <td class="part-name">${partLabel}</td>
+          <td class="subpart-name">${r.sub}</td>
+          <td><select class="status-select" id="${r.statusField}">${statusOpts}</select></td>
+          <td><input type="text" class="condition-input" id="${r.condField}" placeholder="Condition / notes..."></td>
+        </tr>`;
+      }).join('')}
+    </tbody>
+  `;
+}
+
+// ===== PDF GENERATION =====
+function gv(id) {
+  const el = document.getElementById(id);
+  return el ? el.value : '';
+}
+
+function buildInspTableHTML(rows) {
+  return `
+    <table class="pdf-detail-table">
+      <thead>
+        <tr>
+          <th style="width:22%">Part</th>
+          <th style="width:15%">Subpart</th>
+          <th style="width:10%">Status</th>
+          <th>Work Done / Current Condition</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${rows.map(r => `
+          <tr>
+            <td>${r.part}</td>
+            <td class="sub">${r.sub}</td>
+            <td>${gv(r.statusField) === 'ok' ? '<span class="pdf-ok">✓</span>' : gv(r.statusField) === 'issue' ? '<span class="pdf-issue">✗</span>' : gv(r.statusField) || '—'}</td>
+            <td>${gv(r.condField) || '—'}</td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>
+  `;
+}
+
+function makeFooter() {
+  const d = dealerProfile;
+  const compName = d.name || 'Your Dealership';
+  const addr = d.address || '';
+  const web = d.website || '';
+  const cin = d.cin ? `CIN: ${d.cin}` : '';
+  const email = d.email ? `EMAIL: ${d.email}` : '';
+  return `
+    <div class="pdf-footer">
+      <span><strong>${compName}</strong> ${addr}</span>
+      <span>${[web, cin, email].filter(Boolean).join(' | ')}</span>
+    </div>
+  `;
+}
+
+function makeHeader() {
+  const reportId = gv('f-report-id') || currentRefNumber || '—';
+  const dateRaw = gv('f-date');
+  const dateFormatted = dateRaw ? new Date(dateRaw).toLocaleDateString('en-IN', { day:'2-digit', month:'short', year:'numeric' }) : '—';
+  const d = dealerProfile;
+  const logoHTML = d.logo
+    ? `<img src="${d.logo}" style="height:36px;max-width:120px;object-fit:contain;border-radius:4px">`
+    : `<div class="pdf-logo-box">${(d.name || 'AUTO').substring(0,5).toUpperCase()}</div>`;
+  return `
+    <div class="pdf-header">
+      <div class="pdf-logo-area">
+        ${logoHTML}
+        <div>
+          <div class="pdf-company-name">${d.name || 'Your Dealership'}</div>
+          <div class="pdf-company-detail">${d.tagline || ''}</div>
+        </div>
+      </div>
+      <div class="pdf-report-title">
+        <div class="title">INSPECTION REPORT</div>
+        <div class="report-id">${reportId}</div>
+      </div>
+      <div class="pdf-date-box">${dateFormatted.replace(' ', '<br>')}</div>
+    </div>
+  `;
+}
+
+function generatePDF() {
+  // Save current state first
+  saveFormData();
+
+  const btn = event.target;
+  btn.textContent = '⏳ Generating...';
+  btn.disabled = true;
+
+  const refNum = gv('f-report-id') || currentRefNumber || generateRefNumber();
+
+  const carPhotoHTML = carPhotoData
+    ? `<img src="${carPhotoData}" style="width:100%;height:100%;object-fit:cover;border-radius:6px">`
+    : `<div class="no-photo">📷 No Photo</div>`;
+
+  const html = `
+    <div id="pdf-content" style="font-family:Arial,sans-serif;font-size:10px;color:#333;background:#fff;">
+
+      <!-- PAGE 1: Vehicle Info -->
+      <div class="pdf-page">
+        ${makeHeader()}
+        <div class="pdf-vehicle-section">
+          <div class="pdf-car-photo">${carPhotoHTML}</div>
+          <div class="pdf-vehicle-info">
+            <div class="pdf-vehicle-make">${gv('f-make')} ${gv('f-model')}</div>
+            <div class="pdf-vehicle-variant">${gv('f-variant')}</div>
+            <div class="pdf-info-grid">
+              ${[
+                ['Year Of Manufacturing', gv('f-mfg-year')],
+                ['No. Of Owner(s)', gv('f-owners')],
+                ['Duplicate Key', gv('f-dupkey')],
+                ['KM', gv('f-km')],
+                ['Fuel Type', gv('f-fuel')],
+                ['Reg. State', gv('f-reg-state')],
+                ['Reg. City', gv('f-reg-city')],
+                ['Insurance Type', gv('f-insurance-type')],
+                ['Insurance Expiry', gv('f-insurance-expiry')],
+                ['RC Availability', gv('f-rc')],
+                ['Road Tax Paid', gv('f-road-tax')],
+                ['Road Tax Date (Validity)', gv('f-road-tax-date')],
+                ['CNG/LPG Fitment In RC', gv('f-cng')],
+              ].map(([l,v]) => `
+                <div class="pdf-info-row">
+                  <span class="pdf-info-label">${l}</span>
+                  <span class="pdf-info-value">${v || '—'}</span>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        </div>
+
+        <div class="pdf-section-title">Car Details</div>
+        <table class="pdf-car-detail-table">
+          <tr>
+            <td>Registration Number</td><td>${gv('f-reg-num') || '—'}</td>
+            <td>RTO</td><td>${gv('f-rto') || '—'}</td>
+          </tr>
+          <tr>
+            <td>City</td><td>${gv('f-reg-city') || '—'}</td>
+            <td>RTO NOC Issued</td><td>${gv('f-noc') || '—'}</td>
+          </tr>
+          <tr>
+            <td>Inspection At</td><td>${gv('f-inspection-at') || '—'}</td>
+            <td>Under Hypothecation</td><td>${gv('f-hypo') || '—'}</td>
+          </tr>
+          <tr>
+            <td>Branch</td><td>${gv('f-branch-select') || '—'}</td>
+            <td>CNG/LPG Fitment In RC</td><td>${gv('f-cng') || '—'}</td>
+          </tr>
+          <tr>
+            <td>To Be Scrapped</td><td>${gv('f-scrap') || '—'}</td>
+            <td>Chassis Number Embossing</td><td>${gv('f-chassis') || '—'}</td>
+          </tr>
+          <tr>
+            <td>Manufacturing Month</td><td>${gv('f-mfg-month') || '—'}</td>
+            <td></td><td></td>
+          </tr>
+          <tr>
+            <td>Registration Year</td><td>${gv('f-reg-year') || '—'}</td>
+            <td>Registration Month</td><td>${gv('f-reg-month') || '—'}</td>
+          </tr>
+          <tr>
+            <td>Fitness Upto</td><td>${gv('f-fitness') || '—'}</td>
+            <td>Mismatch In RC</td><td>${gv('f-mismatch') || '—'}</td>
+          </tr>
+        </table>
+        ${makeFooter()}
+      </div>
+
+      <!-- PAGE 2: Exterior Summary -->
+      <div class="pdf-page">
+        ${makeHeader()}
+        <div class="pdf-section-title">Exterior + Tyres</div>
+        ${buildInspTableHTML(exteriorRows.slice(0, 20))}
+        ${makeFooter()}
+      </div>
+
+      <!-- PAGE 3: Exterior continued -->
+      <div class="pdf-page">
+        ${makeHeader()}
+        <div class="pdf-section-title">Exterior + Tyres (continued)</div>
+        ${buildInspTableHTML(exteriorRows.slice(20))}
+        ${makeFooter()}
+      </div>
+
+      <!-- PAGE 4: Electricals + Engine -->
+      <div class="pdf-page">
+        ${makeHeader()}
+        <div class="pdf-section-title">Electricals + Interior</div>
+        ${buildInspTableHTML(electricalRows)}
+        <div class="pdf-section-title">Engine + Transmission</div>
+        ${buildInspTableHTML(engineRows)}
+        ${makeFooter()}
+      </div>
+
+      <!-- PAGE 5: Chassis + Comments -->
+      <div class="pdf-page">
+        ${makeHeader()}
+        <div class="pdf-section-title">Steering / Suspension + Brakes</div>
+        ${buildInspTableHTML(chassisRows.slice(0,3))}
+        <div class="pdf-section-title">Air Conditioning</div>
+        ${buildInspTableHTML(chassisRows.slice(3))}
+
+        <div class="pdf-section-title">Comments</div>
+        <div class="pdf-comments-box">
+          ${[
+            ['Exterior + Tyres', gv('c-exterior')],
+            ['Electricals + Interior', gv('c-electrical')],
+            ['Engine + Transmission', gv('c-engine')],
+            ['Steering / Suspension / Brakes', gv('c-chassis')],
+            ['Air Conditioning', gv('c-ac')],
+          ].filter(([,v]) => v).map(([cat, val]) => `
+            <div style="margin-bottom:8px">
+              <div class="comment-cat">${cat}</div>
+              <div class="comment-text">- ${val}</div>
+            </div>
+          `).join('') || '<div class="comment-text">No comments added.</div>'}
+        </div>
+        ${dealerProfile.disclaimer ? `<div style="margin-top:12px;font-size:8px;color:#aaa;font-style:italic;border-top:1px solid #eee;padding-top:6px">${dealerProfile.disclaimer}</div>` : ''}
+        ${makeFooter()}
+      </div>
+
+    </div>
+  `;
+
+  const tpl = document.getElementById('pdf-template');
+  tpl.innerHTML = html;
+  tpl.style.display = 'block';
+
+  const element = tpl.querySelector('#pdf-content');
+  const make = gv('f-make') || 'car';
+  const model = gv('f-model') || 'inspection';
+  const regNum = gv('f-reg-num') || refNum;
+  const fname = `${make}_${model}_${regNum}_${refNum}.pdf`.replace(/\s+/g,'_').replace(/[\/\\]/g,'-');
+
+  const opt = {
+    margin: 0,
+    filename: fname,
+    image: { type: 'jpeg', quality: 0.95 },
+    html2canvas: { scale: 2, useCORS: true, logging: false },
+    jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+    pagebreak: { mode: ['css','legacy'] }
+  };
+
+  html2pdf().set(opt).from(element).save().then(() => {
+    tpl.style.display = 'none';
+    btn.textContent = '✅ PDF Downloaded!';
+    btn.style.background = 'var(--success)';
+    setTimeout(() => {
+      btn.textContent = '📄 Generate PDF Report';
+      btn.style.background = '';
+      btn.disabled = false;
+    }, 3000);
+  }).catch(err => {
+    console.error(err);
+    tpl.style.display = 'none';
+    btn.textContent = '📄 Generate PDF Report';
+    btn.disabled = false;
+    alert('PDF generation failed. Please try again.');
+  });
+}
+
+// ===== INIT =====
+function init() {
+  loadDealer();
+  buildTable('tbl-exterior', exteriorRows);
+  buildTable('tbl-electrical', electricalRows);
+  buildTable('tbl-engine', engineRows);
+  buildTable('tbl-chassis', chassisRows);
+  buildStepperHeader();
+  updateStepper();
+  // Add initial branch if none
+  if (dealerProfile.branches.length === 0) {
+    dealerProfile.branches = [{ name: 'Main Branch', city: '' }];
+    renderBranches();
+  }
+  populateBranchDropdown();
+  // Attach autosave listeners after tables are built
+  attachAutoSaveListeners();
+  // Set today's date
+  document.getElementById('f-date').value = new Date().toISOString().split('T')[0];
+  // Restore any in-progress inspection
+  const savedForm = localStorage.getItem(FORM_STORAGE_KEY);
+  if (savedForm) {
+    restoreFormData();
+  }
+  // Ref number
+  currentRefNumber = getOrCreateRef();
+  document.getElementById('ref-display').textContent = currentRefNumber;
+  if (!document.getElementById('f-report-id').value) {
+    document.getElementById('f-report-id').value = currentRefNumber;
+  }
+}
+
+init();
+</script>
+</body>
+</html>
